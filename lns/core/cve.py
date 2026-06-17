@@ -101,7 +101,7 @@ def enrich(services: list[dict[str, Any]], store: Any, fetch: Fetch = nvd_fetch,
                         f"keyword NVD; verificar versión exacta).",
             remediation=f"Actualizar {product} a una versión sin estos CVE.",
             evidence={"product": product, "version": version,
-                      "max_cvss": top_cvss,
+                      "max_cvss": top_cvss, "count": len(cves), "min_cvss": min_cvss,
                       "cves": [f"{c['id']} ({c['cvss']})" for c in cves]},
             target={"host": svc.get("host"), "port": svc.get("port"),
                     "proto": svc.get("proto")}))

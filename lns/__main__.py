@@ -4,7 +4,7 @@ from __future__ import annotations
 import typer
 
 from .collectors import scanner
-from .core import rules
+from .core import i18n, rules
 from .core.scope import OutOfScope, Scope
 from .core.store import Store
 from .export import json_export
@@ -15,11 +15,22 @@ app.add_typer(rules_app, name="rules")
 
 
 @app.callback(invoke_without_command=True)
-def _root(ctx: typer.Context, db: str = "lns.db"):
+def _root(ctx: typer.Context, db: str = "lns.db",
+          lang: str = typer.Option(None, "--lang", help="idioma de salida: es | en")):
     """Sin subcomando: abre la TUI interactiva."""
+    if lang:
+        i18n.set_lang(lang)
     if ctx.invoked_subcommand is None:
         from .tui.app import run
         run(db=db)
+
+
+@app.command()
+def lang(code: str = typer.Argument(None, help="es | en (vacío = muestra el actual)")):
+    """Fija el idioma por defecto (lo recuerda en config/settings.yaml)."""
+    if code:
+        i18n.set_lang(code, persist=True)
+    typer.echo(i18n.lang())
 
 
 @app.command()

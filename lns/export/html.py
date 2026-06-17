@@ -7,6 +7,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from ..core import i18n
 from ..core.correlation import correlate
 from ..core.finding import Finding
 from ..core.scoring import score_finding
@@ -20,6 +21,7 @@ def to_html(findings: list[Finding], run_id: str = "", scope: str = "",
     for f in findings:
         score_finding(f)
         f.evidence = clean(f.evidence)  # defense in depth; autoescape also on
+        i18n.translate(f)  # title/description/remediation al idioma activo
 
     risks = sorted(correlate(findings).items(), key=lambda x: -x[1])
     by_host: dict[str, list[Finding]] = defaultdict(list)
