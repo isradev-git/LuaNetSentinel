@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# IA / asistentes — nunca subir
+CLAUDE.md
+.claude/
+.superpowers/
+*.plan.md
+plans/
+lns.db
+config/settings.yaml
+.env
+build/
+dist/
+*.egg-info/

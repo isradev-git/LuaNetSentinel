@@ -1,0 +1,9 @@
+active: home
+profiles:
+  home:
+    cidrs: ["192.168.1.0/24"]
+  lab:
+    cidrs: ["172.30.0.0/24"]
+  cliente-x:
+    cidrs: ["10.20.0.0/24"]
+    authorized_by: "Contrato 2026-04 firmado"
