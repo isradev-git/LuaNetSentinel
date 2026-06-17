@@ -58,6 +58,11 @@ class Store:
             out.append(d)
         return out
 
+    def latest_run(self) -> str | None:
+        row = self.db.execute(
+            "SELECT run_id FROM runs ORDER BY ts DESC LIMIT 1").fetchone()
+        return row["run_id"] if row else None
+
     # --- baseline ---
     def set_baseline(self, host: str, ports: list[int],
                      services: dict | None = None) -> None:

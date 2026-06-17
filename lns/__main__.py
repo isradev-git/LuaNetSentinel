@@ -14,6 +14,14 @@ rules_app = typer.Typer(help="Lista y testea reglas")
 app.add_typer(rules_app, name="rules")
 
 
+@app.callback(invoke_without_command=True)
+def _root(ctx: typer.Context, db: str = "lns.db"):
+    """Sin subcomando: abre la TUI interactiva."""
+    if ctx.invoked_subcommand is None:
+        from .tui.app import run
+        run(db=db)
+
+
 @app.command()
 def scan(target: str, profile: str = typer.Option(None, help="perfil de scope"),
          db: str = "lns.db"):
