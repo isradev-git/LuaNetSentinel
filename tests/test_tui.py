@@ -7,14 +7,21 @@ import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from textual.widgets import DataTable, Static
 
 from lns.core import i18n
 from lns.core.finding import Finding
 from lns.core.store import Store
-from lns.tui.app import SentinelApp
+from lns.tui.app import LangScreen, SentinelApp
 
 ACCESS_LOG = str(Path(__file__).parent / "fixtures" / "access.log")
+
+
+@pytest.fixture(autouse=True)
+def _no_first_run(monkeypatch):
+    # evita que el modal de primer-uso se auto-muestre y se coma las teclas
+    monkeypatch.setattr(i18n, "configured", lambda: True)
 
 
 def _seed(path):
@@ -120,6 +127,29 @@ def test_tui_export_writes_html(tmp_path, monkeypatch):
 
     asyncio.run(_run())
     assert (tmp_path / "informe.html").exists()
+
+
+def test_tui_first_run_language_modal(tmp_path, monkeypatch):
+    """El modal de primer-uso fija el idioma y recompone la UI a EN."""
+    db = str(tmp_path / "t.db")
+    _seed(db)  # ssh-exposed → "SSH expuesto"
+    monkeypatch.setattr(i18n, "_SETTINGS", tmp_path / "settings.yaml")
+    i18n.set_lang("es")
+
+    async def _run():
+        app = SentinelApp(db=db)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.push_screen(LangScreen(), app._lang_chosen)
+            await pilot.pause()
+            await pilot.click("#en")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            assert i18n.lang() == "en"
+            assert app.query_one("#findings", DataTable).get_row_at(0)[3] == "SSH exposed"
+
+    asyncio.run(_run())
+    i18n.set_lang("es")
 
 
 def test_tui_empty_state_hint(tmp_path):

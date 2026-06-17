@@ -38,6 +38,11 @@ def lang() -> str:
     return _lang
 
 
+def configured() -> bool:
+    """True si el usuario ya fijó idioma (existe settings.yaml). Primer-uso = False."""
+    return _SETTINGS.exists()
+
+
 def set_lang(code: str | None, persist: bool = False) -> str:
     """Override the language (e.g. --lang). persist=True writes settings.yaml."""
     global _lang

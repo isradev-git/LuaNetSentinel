@@ -7,11 +7,15 @@ toggles the language and recomposes. weblog stays CLI-only.
 """
 from __future__ import annotations
 
+import os
+import sys
 
 from textual import work
 from textual.app import App, ComposeResult
-from textual.widgets import (DataTable, Footer, Header, Input, Markdown,
-                             Static, TabbedContent, TabPane)
+from textual.containers import Center, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import (Button, DataTable, Footer, Header, Input, Label,
+                             Markdown, Static, TabbedContent, TabPane)
 
 from ..collectors import scanner
 from ..core import i18n, rules
@@ -23,6 +27,26 @@ from ..core.store import Store
 BANNER = "▓▓ LuaNetSentinel ▓▓  {sub} · >IZ:: / Glitchbane"
 
 SEV_ICON = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "⚪"}
+
+
+class LangScreen(ModalScreen[str]):
+    """Primer-uso: elige idioma. Devuelve 'es' | 'en' al descartar."""
+    DEFAULT_CSS = """
+    LangScreen { align: center middle; }
+    #langbox { width: auto; height: auto; padding: 2 4; border: round $accent;
+               background: $panel; }
+    #langbox Button { margin: 1 2; width: 16; }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="langbox"):
+            yield Label("Elige idioma   ·   Choose language")
+            with Center():
+                yield Button("Español", id="es", variant="primary")
+                yield Button("English", id="en")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id)
 
 
 class SentinelApp(App):
@@ -58,6 +82,17 @@ class SentinelApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        self._load()
+        # primer-uso (sólo en terminal real): pregunta el idioma una vez
+        if sys.stdout.isatty() and not i18n.configured() and not os.environ.get("LNS_LANG"):
+            self.push_screen(LangScreen(), self._lang_chosen)
+
+    @work
+    async def _lang_chosen(self, code: str | None) -> None:
+        if not code:
+            return
+        i18n.set_lang(code, persist=True)
+        await self.recompose()
         self._load()
 
     def _load(self) -> None:
