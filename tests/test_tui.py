@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 from textual.widgets import DataTable
 
+from lns.core import i18n
 from lns.core.finding import Finding
 from lns.core.store import Store
 from lns.tui.app import SentinelApp
@@ -63,3 +64,23 @@ def test_tui_scan_persists_and_refreshes(tmp_path, monkeypatch):
             assert app.query_one("#findings", DataTable).row_count == 1
 
     asyncio.run(_run())
+
+
+def test_tui_language_toggle(tmp_path, monkeypatch):
+    """'l' alterna ES↔EN y recompone: el título del finding cambia de idioma."""
+    db = str(tmp_path / "t.db")
+    _seed(db)  # ssh-exposed → "SSH expuesto"
+    monkeypatch.setattr(i18n, "_SETTINGS", tmp_path / "settings.yaml")
+    i18n.set_lang("es")
+
+    async def _run():
+        app = SentinelApp(db=db)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            assert app.query_one("#findings", DataTable).get_row_at(0)[3] == "SSH expuesto"
+            await pilot.press("l")
+            await pilot.pause()
+            assert app.query_one("#findings", DataTable).get_row_at(0)[3] == "SSH exposed"
+
+    asyncio.run(_run())
+    i18n.set_lang("es")

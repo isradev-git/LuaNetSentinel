@@ -44,7 +44,7 @@ def scan(target: str, profile: str = typer.Option(None, help="perfil de scope"),
         scope.guard(target)  # raises OutOfScope before nmap launches
         xml = scanner.run_nmap(target)
     except OutOfScope as e:
-        typer.secho(f"BLOQUEADO: {e}", fg="red", err=True)
+        typer.secho(i18n.t("status.blocked", e=e), fg="red", err=True)
         raise typer.Exit(2)
     findings = scanner.parse_xml(xml)
     store = Store(db)
@@ -75,7 +75,7 @@ def traffic(pcap: str = typer.Option(None, help="archivo .pcap (offline)"),
     """Análisis de tráfico: --pcap <f> (offline) o --iface <if> (en vivo)."""
     from .collectors import traffic as tr
     if not pcap and not iface:
-        typer.secho("Indica --pcap o --iface", fg="red", err=True)
+        typer.secho(i18n.t("cli.need_pcap"), fg="red", err=True)
         raise typer.Exit(2)
     packets = tr.read_pcap(pcap) if pcap else tr.live(iface, count=count)
     findings = tr.analyze(packets)
@@ -131,7 +131,7 @@ def baseline_drift(target: str, profile: str = typer.Option(None),
         scope = Scope.load(profile=profile)
         scope.guard(target)
     except OutOfScope as e:
-        typer.secho(f"BLOQUEADO: {e}", fg="red", err=True)
+        typer.secho(i18n.t("status.blocked", e=e), fg="red", err=True)
         raise typer.Exit(2)
     observed = scanner.observed_ports(scanner.run_nmap(target))
     findings = baseline.drift(Store(db), observed)
@@ -151,7 +151,7 @@ def watch(target: str, profile: str = typer.Option(None),
         scope = Scope.load(profile=profile)
         scope.guard(target)
     except OutOfScope as e:
-        typer.secho(f"BLOQUEADO: {e}", fg="red", err=True)
+        typer.secho(i18n.t("status.blocked", e=e), fg="red", err=True)
         raise typer.Exit(2)
 
     rules.load_rules()
@@ -182,7 +182,7 @@ def report(run: str = typer.Argument(None, help="run_id (por defecto, el último
     store = Store(db)
     run = run or store.latest_run()
     if not run:
-        typer.secho("No hay runs guardados.", fg="red", err=True)
+        typer.secho(i18n.t("cli.no_runs"), fg="red", err=True)
         raise typer.Exit(1)
     rows = store.findings(run)
     findings = [Finding(**r) for r in rows]
@@ -196,7 +196,7 @@ def report(run: str = typer.Argument(None, help="run_id (por defecto, el último
     if output:
         from pathlib import Path
         Path(output).write_text(out)
-        typer.echo(f"informe escrito en {output}")
+        typer.echo(i18n.t("cli.report_written", p=output))
     else:
         typer.echo(out)
 

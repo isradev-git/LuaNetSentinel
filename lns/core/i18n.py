@@ -49,8 +49,49 @@ def set_lang(code: str | None, persist: bool = False) -> str:
     return _lang
 
 
-# --- UI chrome (menús, ayuda, etiquetas) — se rellena en la fase de chrome ---
-UI: dict[str, dict[str, str]] = {"es": {}, "en": {}}
+# --- UI chrome (menús, etiquetas, mensajes de CLI/TUI) ---
+UI: dict[str, dict[str, str]] = {
+    "es": {
+        "banner.subtitle": "auditor de red defensivo",
+        "tab.dashboard": "Panel", "tab.findings": "Hallazgos", "tab.rules": "Reglas",
+        "col.host": "Host", "col.risk": "Riesgo", "col.sev": "Sev",
+        "col.rule": "Regla", "col.title": "Título", "col.id": "ID",
+        "col.source": "Fuente",
+        "input.placeholder": "objetivo CIDR (Enter/s escanea) · ruta .pcap (t analiza)",
+        "summary": "Run: {run}   ·   {n} hallazgos   ·   hosts en riesgo: {hi}",
+        "detail.empty": "Selecciona un hallazgo para ver detalle.",
+        "detail.rule": "Regla", "detail.sev": "Severidad", "detail.score": "Score",
+        "detail.target": "Objetivo", "detail.evidence": "Evidencia",
+        "detail.remediation": "Remediación", "detail.nodesc": "sin descripción",
+        "status.scanning": "escaneando {t}…", "status.analyzing": "analizando {t}…",
+        "status.blocked": "BLOQUEADO: {e}", "status.error": "error: {e}",
+        "bind.quit": "Salir", "bind.refresh": "Recargar", "bind.scan": "Escanear",
+        "bind.traffic": "Tráfico", "bind.lang": "Idioma",
+        "cli.need_pcap": "Indica --pcap o --iface",
+        "cli.no_runs": "No hay runs guardados.",
+        "cli.report_written": "informe escrito en {p}",
+    },
+    "en": {
+        "banner.subtitle": "defensive network auditor",
+        "tab.dashboard": "Dashboard", "tab.findings": "Findings", "tab.rules": "Rules",
+        "col.host": "Host", "col.risk": "Risk", "col.sev": "Sev",
+        "col.rule": "Rule", "col.title": "Title", "col.id": "ID",
+        "col.source": "Source",
+        "input.placeholder": "target CIDR (Enter/s scans) · .pcap path (t analyzes)",
+        "summary": "Run: {run}   ·   {n} findings   ·   hosts at risk: {hi}",
+        "detail.empty": "Select a finding to see details.",
+        "detail.rule": "Rule", "detail.sev": "Severity", "detail.score": "Score",
+        "detail.target": "Target", "detail.evidence": "Evidence",
+        "detail.remediation": "Remediation", "detail.nodesc": "no description",
+        "status.scanning": "scanning {t}…", "status.analyzing": "analyzing {t}…",
+        "status.blocked": "BLOCKED: {e}", "status.error": "error: {e}",
+        "bind.quit": "Quit", "bind.refresh": "Reload", "bind.scan": "Scan",
+        "bind.traffic": "Traffic", "bind.lang": "Language",
+        "cli.need_pcap": "Provide --pcap or --iface",
+        "cli.no_runs": "No saved runs.",
+        "cli.report_written": "report written to {p}",
+    },
+}
 
 
 def t(key: str, **kw: object) -> str:

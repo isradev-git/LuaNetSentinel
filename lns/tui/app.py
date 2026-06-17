@@ -1,8 +1,9 @@
 """LuaNetSentinel TUI (textual) — Dashboard / Findings / Rules.
 
-Reads the latest run from the store, and launches scan/traffic interactively
-from the Dashboard input (scope guard still runs first, in a worker thread so
-the UI never blocks). weblog stays CLI-only.
+Reads the latest run, and launches scan/traffic interactively from the
+Dashboard input (scope guard runs first, in a worker thread so the UI never
+blocks). Bilingual ES/EN: chrome via i18n.t(), findings via i18n.tf(); 'l'
+toggles the language and recomposes. weblog stays CLI-only.
 """
 from __future__ import annotations
 
@@ -13,13 +14,13 @@ from textual.widgets import (DataTable, Footer, Header, Input, Markdown,
                              Static, TabbedContent, TabPane)
 
 from ..collectors import scanner
-from ..core import rules
+from ..core import i18n, rules
 from ..core.correlation import correlate
 from ..core.finding import Finding
 from ..core.scope import OutOfScope, Scope
 from ..core.store import Store
 
-BANNER = "▓▓ LuaNetSentinel ▓▓  auditor de red defensivo · >IZ:: / Glitchbane"
+BANNER = "▓▓ LuaNetSentinel ▓▓  {sub} · >IZ:: / Glitchbane"
 
 SEV_ICON = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "⚪"}
 
@@ -27,8 +28,11 @@ SEV_ICON = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵",
 class SentinelApp(App):
     CSS_PATH = "theme.tcss"
     TITLE = "LuaNetSentinel"
-    BINDINGS = [("q", "quit", "Salir"), ("r", "refresh", "Recargar"),
-                ("s", "scan", "Escanear"), ("t", "traffic", "Tráfico")]
+    BINDINGS = [("q", "quit", i18n.t("bind.quit")),
+                ("r", "refresh", i18n.t("bind.refresh")),
+                ("s", "scan", i18n.t("bind.scan")),
+                ("t", "traffic", i18n.t("bind.traffic")),
+                ("l", "lang", i18n.t("bind.lang"))]
 
     def __init__(self, db: str = "lns.db"):
         super().__init__()
@@ -39,28 +43,38 @@ class SentinelApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         with TabbedContent():
-            with TabPane("Dashboard", id="tab-dash"):
-                yield Static(BANNER, id="banner")
-                yield Input(placeholder="objetivo CIDR (Enter/s escanea) · ruta .pcap (t analiza)",
-                            id="target")
+            with TabPane(i18n.t("tab.dashboard"), id="tab-dash"):
+                yield Static(BANNER.format(sub=i18n.t("banner.subtitle")), id="banner")
+                yield Input(placeholder=i18n.t("input.placeholder"), id="target")
                 yield Static(id="summary")
                 yield DataTable(id="risk")
-            with TabPane("Findings", id="tab-find"):
+            with TabPane(i18n.t("tab.findings"), id="tab-find"):
                 yield DataTable(id="findings")
-                yield Markdown("Selecciona un finding para ver detalle.", id="detail")
-            with TabPane("Rules", id="tab-rules"):
+                yield Markdown(i18n.t("detail.empty"), id="detail")
+            with TabPane(i18n.t("tab.rules"), id="tab-rules"):
                 yield DataTable(id="rules")
         yield Footer()
 
     def on_mount(self) -> None:
-        for tid, cols in (("risk", ("Host", "Riesgo")),
-                          ("findings", ("Sev", "Regla", "Host", "Título")),
-                          ("rules", ("ID", "Fuente", "Sev", "Título"))):
+        self._load()
+
+    def _load(self) -> None:
+        """(Re)build tables + data — safe on first mount and after recompose."""
+        cols = {"risk": ("col.host", "col.risk"),
+                "findings": ("col.sev", "col.rule", "col.host", "col.title"),
+                "rules": ("col.id", "col.source", "col.sev", "col.title")}
+        for tid, keys in cols.items():
             t = self.query_one(f"#{tid}", DataTable)
             t.cursor_type = "row"
-            t.add_columns(*cols)
+            if not t.columns:
+                t.add_columns(*(i18n.t(k) for k in keys))
         self._fill_rules()
         self.action_refresh()
+
+    async def action_lang(self) -> None:
+        i18n.set_lang("en" if i18n.lang() == "es" else "es", persist=True)
+        await self.recompose()  # reconstruye chrome en el nuevo idioma…
+        self._load()            # …y repuebla columnas+datos sobre los nuevos widgets
 
     def action_refresh(self) -> None:
         store = Store(self.db)
@@ -71,10 +85,9 @@ class SentinelApp(App):
         findings = [Finding(**d) for d in self._findings]
         risks = correlate(findings)
 
-        summary = self.query_one("#summary", Static)
-        summary.update(
-            f"Run: {self._run or '—'}   ·   {len(self._findings)} findings   ·   "
-            f"hosts en riesgo: {sum(1 for v in risks.values() if v >= 70)}")
+        self.query_one("#summary", Static).update(
+            i18n.t("summary", run=self._run or "—", n=len(self._findings),
+                   hi=sum(1 for v in risks.values() if v >= 70)))
 
         risk_t = self.query_one("#risk", DataTable)
         risk_t.clear()
@@ -83,12 +96,18 @@ class SentinelApp(App):
 
         find_t = self.query_one("#findings", DataTable)
         find_t.clear()
-        for d in self._findings:
+        for d, f in zip(self._findings, findings):
             find_t.add_row(SEV_ICON.get(d["severity"], "·"), d["rule_id"],
-                           d["target"].get("host", "—"), d["title"])
+                           d["target"].get("host", "—"), i18n.tf(f, "title"))
 
-    def _status(self, msg: str) -> None:
-        self.query_one("#summary", Static).update(msg)
+    def _fill_rules(self) -> None:
+        t = self.query_one("#rules", DataTable)
+        for r in rules.load_rules().values():
+            t.add_row(r.id, r.source, r.severity, r.title)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "target":
+            self.action_scan()  # Enter = caso común (escaneo)
 
     def action_scan(self) -> None:
         target = self.query_one("#target", Input).value.strip()
@@ -96,7 +115,7 @@ class SentinelApp(App):
             return
         scope = Scope.load()  # guard runs inside scanner.scan, before nmap
         # ponytail: no enriquece CVE como el `scan` del CLI; añadir si se pide.
-        self._job(f"escaneando {target}…", scope.profile,
+        self._job(i18n.t("status.scanning", t=target), scope.profile,
                   lambda rid: scanner.scan(target, scope, rid))
 
     def action_traffic(self) -> None:
@@ -104,17 +123,13 @@ class SentinelApp(App):
         if not pcap:
             return
         from ..collectors import traffic as tr
-        self._job(f"analizando {pcap}…", "traffic",
+        self._job(i18n.t("status.analyzing", t=pcap), "traffic",
                   lambda rid: tr.analyze(tr.read_pcap(pcap), rid))
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id == "target":
-            self.action_scan()  # Enter = caso común (escaneo)
 
     @work(thread=True, exclusive=True)
     def _job(self, label: str, scope_name: str, finder) -> None:
         """Run a blocking collector off the UI thread, persist, refresh."""
-        self.call_from_thread(self._status, label)
+        self.call_from_thread(self.query_one("#summary", Static).update, label)
         try:
             rules.load_rules()
             store = Store(self.db)
@@ -123,17 +138,14 @@ class SentinelApp(App):
             store.save(findings)
             store.close()
         except OutOfScope as e:
-            self.call_from_thread(self._status, f"BLOQUEADO: {e}")
+            self.call_from_thread(self.query_one("#summary", Static).update,
+                                  i18n.t("status.blocked", e=e))
             return
         except Exception as e:
-            self.call_from_thread(self._status, f"error: {e}")
+            self.call_from_thread(self.query_one("#summary", Static).update,
+                                  i18n.t("status.error", e=e))
             return
         self.call_from_thread(self.action_refresh)
-
-    def _fill_rules(self) -> None:
-        t = self.query_one("#rules", DataTable)
-        for r in rules.load_rules().values():
-            t.add_row(r.id, r.source, r.severity, r.title)
 
     def on_data_table_row_highlighted(self, event) -> None:
         if event.data_table.id != "findings":
@@ -142,14 +154,16 @@ class SentinelApp(App):
         if not (0 <= idx < len(self._findings)):
             return
         d = self._findings[idx]
+        f = Finding(**d)
         self.query_one("#detail", Markdown).update(
-            f"### {SEV_ICON.get(d['severity'],'')} {d['title']}\n\n"
-            f"**Regla:** `{d['rule_id']}`  ·  **Severidad:** {d['severity']}  "
-            f"·  **Score:** {d['score']}\n\n"
-            f"**Objetivo:** `{d['target']}`\n\n"
-            f"{d['description'] or '_sin descripción_'}\n\n"
-            f"**Evidencia:** `{d['evidence']}`\n\n"
-            f"**Remediación:** {d['remediation'] or '—'}")
+            f"### {SEV_ICON.get(d['severity'],'')} {i18n.tf(f,'title')}\n\n"
+            f"**{i18n.t('detail.rule')}:** `{d['rule_id']}`  ·  "
+            f"**{i18n.t('detail.sev')}:** {d['severity']}  ·  "
+            f"**{i18n.t('detail.score')}:** {d['score']}\n\n"
+            f"**{i18n.t('detail.target')}:** `{d['target']}`\n\n"
+            f"{i18n.tf(f,'description') or '_' + i18n.t('detail.nodesc') + '_'}\n\n"
+            f"**{i18n.t('detail.evidence')}:** `{d['evidence']}`\n\n"
+            f"**{i18n.t('detail.remediation')}:** {i18n.tf(f,'remediation') or '—'}")
 
 
 def run(db: str = "lns.db") -> None:
