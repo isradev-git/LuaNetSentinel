@@ -4,7 +4,7 @@
 
 > Analiza una red **autorizada**, detecta exposición y patrones sospechosos, asigna riesgo y genera informes. Pensado para correr en un cyberdeck portátil y, a la vez, servir como proyecto enseñable (portfolio / TFG de ASIR).
 
-![tests](https://img.shields.io/badge/tests-24%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-30%20passing-brightgreen)
 ![python](https://img.shields.io/badge/python-%E2%89%A53.11-blue)
 ![lint](https://img.shields.io/badge/lint-ruff-orange)
 
@@ -39,7 +39,7 @@ just dev          # pip install -e ".[dev]"   (o el comando pip directo)
 ## Uso
 
 ```bash
-lns                                    # sin args → lanza la TUI
+lns                                    # sin args → TUI (escribe objetivo + 's' escanea, 't' analiza .pcap)
 lns scan 192.168.1.0/24                # escaneo autorizado + reglas
 lns traffic --pcap captura.pcap        # análisis de tráfico (offline o --iface live)
 lns weblog /var/log/nginx/access.log   # firmas de ataque en logs web

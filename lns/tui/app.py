@@ -1,18 +1,22 @@
 """LuaNetSentinel TUI (textual) — Dashboard / Findings / Rules.
 
-Reads the latest run from the store. Launch interactions (scan/traffic/weblog)
-stay in the CLI for now; this is the read/drill-down console.
+Reads the latest run from the store, and launches scan/traffic interactively
+from the Dashboard input (scope guard still runs first, in a worker thread so
+the UI never blocks). weblog stays CLI-only.
 """
 from __future__ import annotations
 
 
+from textual import work
 from textual.app import App, ComposeResult
-from textual.widgets import (DataTable, Footer, Header, Markdown, Static,
-                             TabbedContent, TabPane)
+from textual.widgets import (DataTable, Footer, Header, Input, Markdown,
+                             Static, TabbedContent, TabPane)
 
+from ..collectors import scanner
 from ..core import rules
 from ..core.correlation import correlate
 from ..core.finding import Finding
+from ..core.scope import OutOfScope, Scope
 from ..core.store import Store
 
 BANNER = "▓▓ LuaNetSentinel ▓▓  auditor de red defensivo · >IZ:: / Glitchbane"
@@ -23,7 +27,8 @@ SEV_ICON = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵",
 class SentinelApp(App):
     CSS_PATH = "theme.tcss"
     TITLE = "LuaNetSentinel"
-    BINDINGS = [("q", "quit", "Salir"), ("r", "refresh", "Recargar")]
+    BINDINGS = [("q", "quit", "Salir"), ("r", "refresh", "Recargar"),
+                ("s", "scan", "Escanear"), ("t", "traffic", "Tráfico")]
 
     def __init__(self, db: str = "lns.db"):
         super().__init__()
@@ -36,6 +41,8 @@ class SentinelApp(App):
         with TabbedContent():
             with TabPane("Dashboard", id="tab-dash"):
                 yield Static(BANNER, id="banner")
+                yield Input(placeholder="objetivo CIDR (Enter/s escanea) · ruta .pcap (t analiza)",
+                            id="target")
                 yield Static(id="summary")
                 yield DataTable(id="risk")
             with TabPane("Findings", id="tab-find"):
@@ -79,6 +86,49 @@ class SentinelApp(App):
         for d in self._findings:
             find_t.add_row(SEV_ICON.get(d["severity"], "·"), d["rule_id"],
                            d["target"].get("host", "—"), d["title"])
+
+    def _status(self, msg: str) -> None:
+        self.query_one("#summary", Static).update(msg)
+
+    def action_scan(self) -> None:
+        target = self.query_one("#target", Input).value.strip()
+        if not target:
+            return
+        scope = Scope.load()  # guard runs inside scanner.scan, before nmap
+        # ponytail: no enriquece CVE como el `scan` del CLI; añadir si se pide.
+        self._job(f"escaneando {target}…", scope.profile,
+                  lambda rid: scanner.scan(target, scope, rid))
+
+    def action_traffic(self) -> None:
+        pcap = self.query_one("#target", Input).value.strip()
+        if not pcap:
+            return
+        from ..collectors import traffic as tr
+        self._job(f"analizando {pcap}…", "traffic",
+                  lambda rid: tr.analyze(tr.read_pcap(pcap), rid))
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "target":
+            self.action_scan()  # Enter = caso común (escaneo)
+
+    @work(thread=True, exclusive=True)
+    def _job(self, label: str, scope_name: str, finder) -> None:
+        """Run a blocking collector off the UI thread, persist, refresh."""
+        self.call_from_thread(self._status, label)
+        try:
+            rules.load_rules()
+            store = Store(self.db)
+            run_id = store.new_run(scope=scope_name)
+            findings = finder(run_id)
+            store.save(findings)
+            store.close()
+        except OutOfScope as e:
+            self.call_from_thread(self._status, f"BLOQUEADO: {e}")
+            return
+        except Exception as e:
+            self.call_from_thread(self._status, f"error: {e}")
+            return
+        self.call_from_thread(self.action_refresh)
 
     def _fill_rules(self) -> None:
         t = self.query_one("#rules", DataTable)
