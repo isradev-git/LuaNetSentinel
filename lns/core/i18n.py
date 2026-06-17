@@ -79,6 +79,16 @@ UI: dict[str, dict[str, str]] = {
         "cli.need_pcap": "Indica --pcap o --iface",
         "cli.no_runs": "No hay runs guardados.",
         "cli.report_written": "informe escrito en {p}",
+        "cli.app_help": "LuaNetSentinel — auditor de red defensivo (es/en con --lang)",
+        "cli.epilog": (
+            "Ejemplos:\n"
+            "  lns                          abre la TUI interactiva\n"
+            "  lns scan 192.168.1.0/24      escaneo autorizado + CVE\n"
+            "  lns weblog access.log        firmas de ataque en logs web\n"
+            "  lns traffic --pcap cap.pcap  análisis de tráfico\n"
+            "  lns report -f html -o r.html informe HTML del último run\n"
+            "  lns lang en                  fija el idioma (es|en)\n\n"
+            "Idioma: --lang es|en, variable LNS_LANG, o `lns lang`."),
     },
     "en": {
         "banner.subtitle": "defensive network auditor",
@@ -103,6 +113,16 @@ UI: dict[str, dict[str, str]] = {
         "cli.need_pcap": "Provide --pcap or --iface",
         "cli.no_runs": "No saved runs.",
         "cli.report_written": "report written to {p}",
+        "cli.app_help": "LuaNetSentinel — defensive network auditor (es/en via --lang)",
+        "cli.epilog": (
+            "Examples:\n"
+            "  lns                          open the interactive TUI\n"
+            "  lns scan 192.168.1.0/24      authorized scan + CVE\n"
+            "  lns weblog access.log        attack signatures in web logs\n"
+            "  lns traffic --pcap cap.pcap  traffic analysis\n"
+            "  lns report -f html -o r.html HTML report of the latest run\n"
+            "  lns lang en                  set the language (es|en)\n\n"
+            "Language: --lang es|en, the LNS_LANG env var, or `lns lang`."),
     },
 }
 

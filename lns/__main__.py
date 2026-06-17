@@ -9,7 +9,8 @@ from .core.scope import OutOfScope, Scope
 from .core.store import Store
 from .export import json_export
 
-app = typer.Typer(add_completion=False, help="LuaNetSentinel — auditor de red defensivo")
+app = typer.Typer(add_completion=False, help=i18n.t("cli.app_help"),
+                  epilog=i18n.t("cli.epilog"))
 rules_app = typer.Typer(help="Lista y testea reglas")
 app.add_typer(rules_app, name="rules")
 
