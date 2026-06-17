@@ -32,6 +32,8 @@ class SentinelApp(App):
                 ("r", "refresh", i18n.t("bind.refresh")),
                 ("s", "scan", i18n.t("bind.scan")),
                 ("t", "traffic", i18n.t("bind.traffic")),
+                ("w", "weblog", i18n.t("bind.weblog")),
+                ("e", "export", i18n.t("bind.export")),
                 ("l", "lang", i18n.t("bind.lang"))]
 
     def __init__(self, db: str = "lns.db"):
@@ -85,9 +87,11 @@ class SentinelApp(App):
         findings = [Finding(**d) for d in self._findings]
         risks = correlate(findings)
 
-        self.query_one("#summary", Static).update(
-            i18n.t("summary", run=self._run or "—", n=len(self._findings),
-                   hi=sum(1 for v in risks.values() if v >= 70)))
+        summary = i18n.t("summary", run=self._run or "—", n=len(self._findings),
+                         hi=sum(1 for v in risks.values() if v >= 70))
+        if not self._findings:  # onboarding: di al usuario qué hacer
+            summary += "\n" + i18n.t("hint.empty")
+        self.query_one("#summary", Static).update(summary)
 
         risk_t = self.query_one("#risk", DataTable)
         risk_t.clear()
@@ -125,6 +129,27 @@ class SentinelApp(App):
         from ..collectors import traffic as tr
         self._job(i18n.t("status.analyzing", t=pcap), "traffic",
                   lambda rid: tr.analyze(tr.read_pcap(pcap), rid))
+
+    def action_weblog(self) -> None:
+        path = self.query_one("#target", Input).value.strip()
+        if not path:
+            return
+        from ..collectors import weblog as wl
+        self._job(i18n.t("status.analyzing", t=path), "weblog",
+                  lambda rid: wl.analyze(path, rid))
+
+    def action_export(self) -> None:
+        """Exporta el run actual a informe.html (en el idioma activo)."""
+        if not self._run:
+            return
+        from pathlib import Path
+
+        from ..export import html
+        rows = Store(self.db).findings(self._run)
+        out = html.to_html([Finding(**r) for r in rows], run_id=self._run)
+        path = "informe.html"
+        Path(path).write_text(out)
+        self.query_one("#summary", Static).update(i18n.t("status.exported", p=path))
 
     @work(thread=True, exclusive=True)
     def _job(self, label: str, scope_name: str, finder) -> None:

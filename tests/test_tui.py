@@ -4,14 +4,17 @@ textual's run_test() is async; we drive it via asyncio.run to avoid needing
 pytest-asyncio. The logic the TUI calls is tested elsewhere; this checks wiring.
 """
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 
-from textual.widgets import DataTable
+from textual.widgets import DataTable, Static
 
 from lns.core import i18n
 from lns.core.finding import Finding
 from lns.core.store import Store
 from lns.tui.app import SentinelApp
+
+ACCESS_LOG = str(Path(__file__).parent / "fixtures" / "access.log")
 
 
 def _seed(path):
@@ -84,3 +87,49 @@ def test_tui_language_toggle(tmp_path, monkeypatch):
 
     asyncio.run(_run())
     i18n.set_lang("es")
+
+
+def test_tui_weblog_action_populates(tmp_path):
+    """'w' analiza un log web (fixture) y rellena la tabla de hallazgos."""
+    db = str(tmp_path / "t.db")
+
+    async def _run():
+        app = SentinelApp(db=db)
+        async with app.run_test() as pilot:
+            app.query_one("#target").value = ACCESS_LOG
+            await pilot.press("w")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            assert app.query_one("#findings", DataTable).row_count >= 1
+
+    asyncio.run(_run())
+
+
+def test_tui_export_writes_html(tmp_path, monkeypatch):
+    """'e' exporta el run actual a informe.html."""
+    db = str(tmp_path / "t.db")
+    _seed(db)
+    monkeypatch.chdir(tmp_path)  # informe.html cae en tmp
+
+    async def _run():
+        app = SentinelApp(db=db)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await pilot.press("e")
+            await pilot.pause()
+
+    asyncio.run(_run())
+    assert (tmp_path / "informe.html").exists()
+
+
+def test_tui_empty_state_hint(tmp_path):
+    """Sin datos, el resumen muestra la pista de onboarding."""
+    db = str(tmp_path / "empty.db")
+
+    async def _run():
+        app = SentinelApp(db=db)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            assert "'s'" in str(app.query_one("#summary", Static).render())
+
+    asyncio.run(_run())
