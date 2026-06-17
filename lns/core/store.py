@@ -58,6 +58,28 @@ class Store:
             out.append(d)
         return out
 
+    # --- baseline ---
+    def set_baseline(self, host: str, ports: list[int],
+                     services: dict | None = None) -> None:
+        self.db.execute("INSERT OR REPLACE INTO baseline VALUES (?,?,?,?)",
+                        (host, json.dumps(sorted(ports)),
+                         json.dumps(services or {}), time.time()))
+        self.db.commit()
+
+    def get_baseline(self, host: str) -> dict | None:
+        row = self.db.execute("SELECT * FROM baseline WHERE host=?",
+                              (host,)).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        d["ports"] = json.loads(d["ports"])
+        d["services"] = json.loads(d["services"])
+        return d
+
+    def all_baseline(self) -> list[dict]:
+        return [self.get_baseline(r["host"])
+                for r in self.db.execute("SELECT host FROM baseline").fetchall()]
+
     def close(self) -> None:
         self.db.close()
 

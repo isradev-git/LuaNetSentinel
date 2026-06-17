@@ -48,6 +48,21 @@ def parse_xml(xml: str, run_id: str = "") -> list[Finding]:
     return out
 
 
+def observed_ports(xml: str) -> dict[str, set[int]]:
+    """Map host -> set of open ports, for baseline drift comparison."""
+    root = ET.fromstring(xml)
+    out: dict[str, set[int]] = {}
+    for host in root.findall("host"):
+        addr_el = host.find("address")
+        ip = addr_el.get("addr") if addr_el is not None else None
+        if not ip:
+            continue
+        ports = {int(p.get("portid")) for p in host.findall("./ports/port")
+                 if (st := p.find("state")) is not None and st.get("state") == "open"}
+        out[ip] = ports
+    return out
+
+
 def scan(target: str, scope: Scope, run_id: str = "") -> list[Finding]:
     scope.guard(target)  # raises OutOfScope before anything launches
     return parse_xml(run_nmap(target), run_id=run_id)

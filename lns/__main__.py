@@ -54,6 +54,57 @@ def traffic(pcap: str = typer.Option(None, help="archivo .pcap (offline)"),
 
 
 @app.command()
+def weblog(logfile: str, db: str = "lns.db"):
+    """Auditoría de logs web (combined format) + firmas de ataque."""
+    from .collectors import weblog as wl
+    findings = wl.analyze(logfile)
+    store = Store(db)
+    run_id = store.new_run(scope="weblog")
+    for f in findings:
+        f.run_id = run_id
+    store.save(findings)
+    typer.echo(json_export.dumps(findings, run_id))
+
+
+baseline_app = typer.Typer(help="Gestiona baseline y detecta drift")
+app.add_typer(baseline_app, name="baseline")
+
+
+@baseline_app.command("set")
+def baseline_set(host: str, ports: str = typer.Option(..., help="ej: 22,80,443"),
+                 db: str = "lns.db"):
+    """Fija el baseline (puertos esperados) de un host."""
+    Store(db).set_baseline(host, [int(p) for p in ports.split(",") if p.strip()])
+    typer.echo(f"baseline fijado para {host}: {ports}")
+
+
+@baseline_app.command("show")
+def baseline_show(host: str = typer.Argument(None), db: str = "lns.db"):
+    """Muestra el baseline de un host (o todos)."""
+    import json
+    store = Store(db)
+    data = store.get_baseline(host) if host else store.all_baseline()
+    typer.echo(json.dumps(data, indent=2, ensure_ascii=False))
+
+
+@baseline_app.command("drift")
+def baseline_drift(target: str, profile: str = typer.Option(None),
+                   db: str = "lns.db"):
+    """Escanea el objetivo y reporta drift respecto al baseline."""
+    from .collectors import scanner
+    from .core import baseline
+    try:
+        scope = Scope.load(profile=profile)
+        scope.guard(target)
+    except OutOfScope as e:
+        typer.secho(f"BLOQUEADO: {e}", fg="red", err=True)
+        raise typer.Exit(2)
+    observed = scanner.observed_ports(scanner.run_nmap(target))
+    findings = baseline.drift(Store(db), observed)
+    typer.echo(json_export.dumps(findings))
+
+
+@app.command()
 def report(run: str, db: str = "lns.db"):
     """Genera informe JSON del run guardado."""
     import json
