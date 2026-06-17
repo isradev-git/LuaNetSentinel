@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>LuaNetSentinel — informe {{ run_id }}</title>
+<style>
+  :root { --bg:#0a0e14; --panel:#0d1117; --fg:#c9d1d9; --neon:#39ff14; --pink:#ff2e88; }
+  body { background:var(--bg); color:var(--fg); font:14px/1.5 ui-monospace,monospace; margin:0; padding:2rem; }
+  h1 { color:var(--neon); } h2 { color:var(--pink); border-bottom:1px solid #222; padding-bottom:.3rem; }
+  .meta { color:#8b949e; margin-bottom:1.5rem; }
+  table { border-collapse:collapse; width:100%; margin:.5rem 0 1.5rem; }
+  th,td { text-align:left; padding:.4rem .6rem; border-bottom:1px solid #1c2330; vertical-align:top; }
+  th { color:var(--pink); }
+  .sev-critical{color:#ff4d4d;font-weight:bold} .sev-high{color:#ff9f1c} .sev-medium{color:#ffd23f}
+  .sev-low{color:#4d96ff} .sev-info{color:#8b949e}
+  .risk { font-size:1.4rem; font-weight:bold; }
+  code { background:#161b22; padding:.05rem .3rem; border-radius:3px; }
+  footer { margin-top:2rem; color:#8b949e; font-size:12px; }
+</style>
+</head>
+<body>
+<h1>▓▓ LuaNetSentinel ▓▓</h1>
+<div class="meta">
+  Run <code>{{ run_id }}</code> · scope <code>{{ scope }}</code> ·
+  generado {{ generated_at }} · {{ findings|length }} hallazgos
+</div>
+
+<h2>Riesgo por host</h2>
+<table>
+  <tr><th>Host</th><th>Riesgo</th></tr>
+  {% for host, risk in risks %}
+  <tr><td>{{ host }}</td><td class="risk">{{ risk }}</td></tr>
+  {% endfor %}
+</table>
+
+{% for host, items in by_host %}
+<h2>{{ host }}</h2>
+<table>
+  <tr><th>Sev</th><th>Hallazgo</th><th>Objetivo</th><th>Evidencia</th><th>Remediación</th></tr>
+  {% for f in items %}
+  <tr>
+    <td class="sev-{{ f.severity }}">{{ f.severity|upper }}</td>
+    <td><strong>{{ f.title }}</strong><br><small>{{ f.description }}</small></td>
+    <td><code>{{ f.target }}</code></td>
+    <td><code>{{ f.evidence }}</code></td>
+    <td>{{ f.remediation }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endfor %}
+
+<footer>
+  LuaNetSentinel · uso exclusivo en redes propias o autorizadas · &gt;IZ:: / Glitchbane
+</footer>
+</body>
+</html>

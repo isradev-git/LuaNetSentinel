@@ -1,7 +1,6 @@
-import os
 
 from lns.alerting import email_smtp, telegram
-from lns.alerting.notify import Notifier, digest
+from lns.alerting.notify import Notifier
 from lns.core.finding import Finding
 from lns.core.store import Store
 from lns.core.watch import watch

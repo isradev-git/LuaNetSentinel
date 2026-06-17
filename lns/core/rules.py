@@ -6,7 +6,7 @@ A rule is a function taking a Context (attribute bag) returning bool or
 from __future__ import annotations
 
 import importlib.util
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable

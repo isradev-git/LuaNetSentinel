@@ -147,12 +147,32 @@ def watch(target: str, profile: str = typer.Option(None),
 
 
 @app.command()
-def report(run: str, db: str = "lns.db"):
-    """Genera informe JSON del run guardado."""
-    import json
-    rows = Store(db).findings(run)
-    typer.echo(json.dumps({"run_id": run, "findings": rows},
-                          indent=2, ensure_ascii=False))
+def report(run: str = typer.Argument(None, help="run_id (por defecto, el último)"),
+           format: str = typer.Option("json", help="json | html"),
+           output: str = typer.Option(None, "--output", "-o", help="archivo de salida"),
+           db: str = "lns.db"):
+    """Genera informe del run guardado (JSON o HTML)."""
+    from .core.finding import Finding
+    store = Store(db)
+    run = run or store.latest_run()
+    if not run:
+        typer.secho("No hay runs guardados.", fg="red", err=True)
+        raise typer.Exit(1)
+    rows = store.findings(run)
+    findings = [Finding(**r) for r in rows]
+
+    if format == "html":
+        from .export import html
+        out = html.to_html(findings, run_id=run)
+    else:
+        out = json_export.dumps(findings, run)
+
+    if output:
+        from pathlib import Path
+        Path(output).write_text(out)
+        typer.echo(f"informe escrito en {output}")
+    else:
+        typer.echo(out)
 
 
 @rules_app.command("list")

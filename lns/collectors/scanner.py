@@ -32,7 +32,10 @@ def parse_xml(xml: str, run_id: str = "") -> list[Finding]:
         for port in host.findall("./ports/port"):
             state_el = port.find("state")
             svc_el = port.find("service")
+            scripts = {s.get("id"): s.get("output", "")
+                       for s in port.findall("script")}
             ctx = rules.Context(
+                scripts=scripts,
                 host=host_ip,
                 port=int(port.get("portid")),
                 proto=port.get("protocol"),

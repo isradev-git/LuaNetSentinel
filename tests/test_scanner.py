@@ -25,6 +25,23 @@ def test_parse_fires_expected_rules():
     assert all(f.target["host"] == "192.168.1.10" for f in findings)
 
 
+def test_tls_weak_from_script_output():
+    xml = """<nmaprun><host><address addr="192.168.1.10"/>
+      <ports><port protocol="tcp" portid="443">
+        <state state="open"/>
+        <service name="https"/>
+        <script id="ssl-enum-ciphers" output="TLSv1.0: ... RC4 ... least strength: C"/>
+      </port></ports></host></nmaprun>"""
+    findings = scanner.parse_xml(xml, run_id="r1")
+    assert any(f.rule_id == "tls-weak" for f in findings)
+
+
+def test_observed_ports_only_open():
+    findings_xml = FIXTURE.read_text()
+    observed = scanner.observed_ports(findings_xml)
+    assert observed["192.168.1.10"] == {22, 23, 80}
+
+
 def test_scope_blocks_out_of_range():
     scope = Scope("home", ["192.168.1.0/24"])
     with pytest.raises(OutOfScope):

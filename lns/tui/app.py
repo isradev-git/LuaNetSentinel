@@ -5,7 +5,6 @@ stay in the CLI for now; this is the read/drill-down console.
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.widgets import (DataTable, Footer, Header, Markdown, Static,

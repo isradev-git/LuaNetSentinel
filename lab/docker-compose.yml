@@ -1,0 +1,22 @@
+# Lab vulnerable AISLADO — objetivo controlado para validar scanner y reglas.
+# Red interna sin exponer puertos al host: se escanea DESDE dentro de la red
+# (ver lab/README.md). No usar imágenes así en producción.
+services:
+  target:
+    image: vulnerables/web-dvwa  # web app deliberadamente vulnerable
+    networks: [labnet]
+    restart: unless-stopped
+
+  legacy:
+    image: instrumentisto/vsftpd  # FTP en claro, servicio legacy
+    networks: [labnet]
+    restart: unless-stopped
+
+  scanner:
+    image: instrumentisto/nmap
+    networks: [labnet]
+    entrypoint: ["sleep", "infinity"]  # docker exec scanner nmap -sV target legacy
+
+networks:
+  labnet:
+    internal: true  # sin salida ni puertos al host
