@@ -113,6 +113,40 @@ def baseline_drift(target: str, profile: str = typer.Option(None),
 
 
 @app.command()
+def watch(target: str, profile: str = typer.Option(None),
+          interval: float = typer.Option(60.0, help="segundos entre ciclos"),
+          severity: str = typer.Option("high", help="umbral de alerta"),
+          db: str = "lns.db"):
+    """Vigilancia en vivo: escaneo periódico + alertas ante findings nuevos."""
+    from .collectors import scanner
+    from .alerting.notify import Notifier, default_channels
+    from .core.watch import watch as watch_loop
+    try:
+        scope = Scope.load(profile=profile)
+        scope.guard(target)
+    except OutOfScope as e:
+        typer.secho(f"BLOQUEADO: {e}", fg="red", err=True)
+        raise typer.Exit(2)
+
+    rules.load_rules()
+    chans = default_channels()
+    typer.echo(f"watch {target} cada {interval}s · umbral {severity} · "
+               f"canales: {len(chans)} · Ctrl-C para salir")
+    notifier = Notifier(min_severity=severity, channels=chans)
+
+    def report_cycle(ev):
+        typer.echo(f"[{ev['run_id']}] total={ev['total']} nuevos={ev['new']} "
+                   f"alertados={ev['alerted']}")
+
+    try:
+        watch_loop(lambda rid: scanner.scan(target, scope, rid), Store(db),
+                   notifier, interval=interval, scope=scope.profile,
+                   on_cycle=report_cycle)
+    except KeyboardInterrupt:
+        typer.echo("\nwatch detenido.")
+
+
+@app.command()
 def report(run: str, db: str = "lns.db"):
     """Genera informe JSON del run guardado."""
     import json

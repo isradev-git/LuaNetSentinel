@@ -40,6 +40,13 @@ class Finding:
     def host(self) -> str | None:
         return self.target.get("host")
 
+    @property
+    def key(self) -> str:
+        """Content identity (no timestamp) — for anti-spam dedup across runs.
+        Two scans of the same exposed port share a key but have distinct ids."""
+        t = self.target
+        return f"{self.rule_id}|{t.get('host')}|{t.get('port')}|{t.get('proto')}"
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
