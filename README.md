@@ -45,11 +45,12 @@ lns traffic --pcap captura.pcap        # análisis de tráfico (offline o --ifac
 lns weblog /var/log/nginx/access.log   # firmas de ataque en logs web
 lns watch 192.168.1.0/24               # vigilancia: re-escaneo + alertas anti-spam
 lns baseline set | show | drift        # estado conocido y detección de cambios
+lns cve OpenSSH 7.4                     # CVEs de un producto/versión (NVD, cache offline)
 lns report --format html -o informe.html
 lns rules list
 ```
 
-Detecciones incluidas: SSH/servicios legacy expuestos, TLS débil/cert caducado, DNS tunneling (entropía), credenciales en claro, beaconing (C2), ARP spoofing, SQLi/XSS/path-traversal/escáneres en logs, y drift contra baseline.
+Detecciones incluidas: SSH/servicios legacy expuestos, TLS débil/cert caducado, DNS tunneling (entropía), credenciales en claro, beaconing (C2), ARP spoofing, SQLi/XSS/path-traversal/escáneres en logs, drift contra baseline, y **enriquecimiento CVE** del scanner contra NVD (consulta cacheada en SQLite, degrada a caché sin conexión).
 
 ## Desarrollo
 
@@ -78,4 +79,4 @@ lab/        docker-compose con red interna aislada para pruebas
 
 ## Licencia
 
-Pendiente. Hasta entonces, todos los derechos reservados al autor.
+[MIT](LICENSE) © 2026 Israel Zamora.

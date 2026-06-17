@@ -24,21 +24,36 @@ def _root(ctx: typer.Context, db: str = "lns.db"):
 
 @app.command()
 def scan(target: str, profile: str = typer.Option(None, help="perfil de scope"),
+         cve: bool = typer.Option(True, help="enriquecer con CVE (NVD, cae a caché offline)"),
          db: str = "lns.db"):
     """Escaneo autorizado + reglas → run guardado."""
     rules.load_rules()
     try:
         scope = Scope.load(profile=profile)
-        findings = scanner.scan(target, scope)
+        scope.guard(target)  # raises OutOfScope before nmap launches
+        xml = scanner.run_nmap(target)
     except OutOfScope as e:
         typer.secho(f"BLOQUEADO: {e}", fg="red", err=True)
         raise typer.Exit(2)
+    findings = scanner.parse_xml(xml)
     store = Store(db)
+    if cve:
+        from .core import cve as cve_mod
+        findings += cve_mod.enrich(scanner.services(xml), store)
     run_id = store.new_run(scope=scope.profile)
     for f in findings:
         f.run_id = run_id
     store.save(findings)
     typer.echo(json_export.dumps(findings, run_id))
+
+
+@app.command()
+def cve(product: str, version: str = typer.Argument(""), db: str = "lns.db"):
+    """Consulta CVEs (NVD) de un producto/versión. Cache-first, offline-safe."""
+    import json
+    from .core import cve as cve_mod
+    typer.echo(json.dumps(cve_mod.lookup(product, version, Store(db)),
+                          indent=2, ensure_ascii=False))
 
 
 @app.command()

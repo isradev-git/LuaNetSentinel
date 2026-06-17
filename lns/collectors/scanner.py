@@ -66,6 +66,27 @@ def observed_ports(xml: str) -> dict[str, set[int]]:
     return out
 
 
+def services(xml: str) -> list[dict]:
+    """Open ports with an identified product/version, for CVE enrichment."""
+    root = ET.fromstring(xml)
+    out: list[dict] = []
+    for host in root.findall("host"):
+        addr_el = host.find("address")
+        ip = addr_el.get("addr") if addr_el is not None else None
+        for port in host.findall("./ports/port"):
+            svc = port.find("service")
+            st = port.find("state")
+            if svc is None or not svc.get("product"):
+                continue
+            if st is not None and st.get("state") != "open":
+                continue
+            out.append({"host": ip, "port": int(port.get("portid")),
+                        "proto": port.get("protocol"),
+                        "product": svc.get("product"),
+                        "version": svc.get("version", "")})
+    return out
+
+
 def scan(target: str, scope: Scope, run_id: str = "") -> list[Finding]:
     scope.guard(target)  # raises OutOfScope before anything launches
     return parse_xml(run_nmap(target), run_id=run_id)

@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS findings (
 CREATE TABLE IF NOT EXISTS baseline (
   host TEXT PRIMARY KEY, ports TEXT, services TEXT, ts REAL
 );
+CREATE TABLE IF NOT EXISTS cve_cache (
+  query TEXT PRIMARY KEY, cves TEXT, ts REAL
+);
 CREATE INDEX IF NOT EXISTS ix_findings_run ON findings(run_id);
 """
 
@@ -84,6 +87,17 @@ class Store:
     def all_baseline(self) -> list[dict]:
         return [self.get_baseline(r["host"])
                 for r in self.db.execute("SELECT host FROM baseline").fetchall()]
+
+    # --- cve cache (None = miss; [] = cached "no CVEs") ---
+    def cve_get(self, query: str) -> list | None:
+        row = self.db.execute("SELECT cves FROM cve_cache WHERE query=?",
+                              (query,)).fetchone()
+        return json.loads(row["cves"]) if row else None
+
+    def cve_put(self, query: str, cves: list) -> None:
+        self.db.execute("INSERT OR REPLACE INTO cve_cache VALUES (?,?,?)",
+                        (query, json.dumps(cves), time.time()))
+        self.db.commit()
 
     def close(self) -> None:
         self.db.close()
