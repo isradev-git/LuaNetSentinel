@@ -34,6 +34,26 @@ def scan(target: str, profile: str = typer.Option(None, help="perfil de scope"),
 
 
 @app.command()
+def traffic(pcap: str = typer.Option(None, help="archivo .pcap (offline)"),
+            iface: str = typer.Option(None, help="interfaz para captura en vivo"),
+            count: int = typer.Option(0, help="paquetes a capturar (0 = sin límite)"),
+            db: str = "lns.db"):
+    """Análisis de tráfico: --pcap <f> (offline) o --iface <if> (en vivo)."""
+    from .collectors import traffic as tr
+    if not pcap and not iface:
+        typer.secho("Indica --pcap o --iface", fg="red", err=True)
+        raise typer.Exit(2)
+    packets = tr.read_pcap(pcap) if pcap else tr.live(iface, count=count)
+    findings = tr.analyze(packets)
+    store = Store(db)
+    run_id = store.new_run(scope="traffic")
+    for f in findings:
+        f.run_id = run_id
+    store.save(findings)
+    typer.echo(json_export.dumps(findings, run_id))
+
+
+@app.command()
 def report(run: str, db: str = "lns.db"):
     """Genera informe JSON del run guardado."""
     import json
